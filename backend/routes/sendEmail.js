@@ -1,31 +1,31 @@
-// routes/sendEmail.js
-require("dotenv").config();
 const express = require("express");
 const { Resend } = require("resend");
 
 const router = express.Router();
+
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-router.post("/send-email", async (req, res) => {
+router.post("/", async (req, res) => {
   try {
-    const { to, subject, html } = req.body;
+    const { email, fullName, orderId, orderDetails, paymentMethod } = req.body;
 
-    if (!to) return res.status(400).json({ message: "Recipient email missing" });
-
-    const response = await resend.emails.send({
-      from: "no-reply@adhyaapickles.in", // verified sender in Resend
-      to,
-      subject,
-      html,
+    await resend.emails.send({
+      from: process.env.EMAIL_FROM,
+      to: email,
+      subject: `Order Confirmed - ${orderId}`,
+      html: `
+        <h2>Thank you ${fullName}!</h2>
+        <p>Your order <b>${orderId}</b> was placed successfully.</p>
+        <p><b>Payment:</b> ${paymentMethod.toUpperCase()}</p>
+        <p><b>Total:</b> ₹${orderDetails.finalTotal}</p>
+        <p>We will deliver your order soon.</p>
+      `,
     });
 
-    console.log("📧 Email sent via Resend:", response);
-
-    res.status(200).json({ message: "Email sent successfully", response });
-
-  } catch (err) {
-    console.error("❌ Resend email error:", err);
-    res.status(500).json({ message: "Email sending failed", error: err.message });
+    res.json({ message: "Email sent" });
+  } catch (error) {
+    console.error("Email error:", error);
+    res.status(500).json({ message: "Email failed" });
   }
 });
 
