@@ -1,48 +1,25 @@
-import { useEffect, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
 const PhonePeRedirectHandler = () => {
-  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [status, setStatus] = useState("VERIFYING");
-
-  const orderId = searchParams.get("orderId");
 
   useEffect(() => {
-    if (!orderId) {
-      navigate("/");
-      return;
+    const params = new URLSearchParams(window.location.search);
+
+    const orderId = params.get("merchantOrderId");
+    const code = params.get("code");
+
+    if (code === "PAYMENT_SUCCESS") {
+      navigate(`/order-summary/${orderId}`);
+    } else {
+      navigate("/checkout?payment=cancelled");
     }
-
-    const checkPaymentStatus = async () => {
-      try {
-        const res = await fetch(
-          `${import.meta.env.VITE_BACKEND_URL}/api/phonepe/status/${orderId}`
-        );
-        const data = await res.json();
-
-        if (data.status === "SUCCESS") {
-          navigate(`/order-summary/${orderId}`);
-        } else if (data.status === "FAILED") {
-          navigate(`/checkout?payment=failed`);
-        } else if (data.status === "CANCELLED") {
-          navigate(`/checkout?payment=cancelled`);
-        } else {
-          setTimeout(checkPaymentStatus, 3000);
-        }
-      } catch (err) {
-        console.error(err);
-        navigate(`/checkout?payment=error`);
-      }
-    };
-
-    checkPaymentStatus();
-  }, [orderId, navigate]);
+  }, []);
 
   return (
-    <div className="min-h-screen flex flex-col justify-center items-center">
-      <h2 className="text-xl font-semibold">Verifying your payment...</h2>
-      <p className="text-gray-500 mt-2">Please wait, do not refresh</p>
+    <div className="min-h-screen flex items-center justify-center">
+      <p>Verifying your payment...</p>
     </div>
   );
 };
