@@ -180,7 +180,7 @@ const CheckoutPage = () => {
   if (subtotal > 1000) {
     shippingCost = 100; // Free shipping over ₹1000
   } else if (subtotal < 250) {
-    shippingCost = 49;
+    shippingCost = 0;
   } else if (subtotal < 500) {
     shippingCost = 59;
   } else {
