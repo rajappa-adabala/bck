@@ -26,7 +26,7 @@ import FAQ from "./pages/FAQ";
 import AdminDashboard from "./pages/AdminDashboard";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import PhonePeRedirectHandler from "./pages/PhonePeRedirectHandler";
-import OrderSummary from "./pages/OrderSummary"; // ✅ Make sure this exists
+import OrderSummary from "./pages/OrderSummary";
 
 // ✅ React Query setup
 const queryClient = new QueryClient();
@@ -38,12 +38,11 @@ const App = () => {
         <CartProvider>
           <Head />
           <ShadToaster /> {/* shadcn ui Toaster */}
-          <Sonner /> {/* If you use sonner toasts elsewhere */}
+          <Sonner /> {/* Optional Sonner Toaster */}
           <BrowserRouter>
             <Routes>
               {/* Public Routes */}
               <Route path="/" element={<Index />} />
-              <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/products" element={<ProductsPage />} />
               <Route path="/product/:id" element={<ProductDetailPage />} />
               <Route path="/about" element={<AboutPage />} />
@@ -60,11 +59,12 @@ const App = () => {
               <Route path="/payment-success" element={<PaymentSuccess />} />
               <Route path="/order-summary/:orderId" element={<OrderSummary />} />
 
-              {/* Clerk Auth Pages */}
+              {/* Admin & Auth */}
+              <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/sign-in/*" element={<AuthPage />} />
               <Route path="/sign-up/*" element={<AuthPage />} />
 
-              {/* Protected Route */}
+              {/* Protected User Dashboard */}
               <Route
                 path="/dashboard"
                 element={
