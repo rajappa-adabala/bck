@@ -8,7 +8,9 @@ const { Server } = require("socket.io");
 const { createClient } = require("@supabase/supabase-js");
 
 // ROUTES
-const sendEmailRouter = require("./routes/sendEmail");
+import sendEmailRouter from './routes/sendEmail.js';
+
+
 const adminRoutes = require("./routes/adminRoutes");
 const orderRoutes = require("./routes/orderRoutes");
 const phonepeRoutes = require("./routes/phonepeRoutes");
@@ -50,8 +52,8 @@ app.use(express.json());
 =========================== */
 
 // ✅ EMAIL ROUTE (THIS FIXES 404)
-app.use("/api/send-email", sendEmailRouter);
 
+app.use('/api', sendEmailRouter);
 // ✅ ORDERS
 app.use("/api/orders", orderRoutes(supabase, null));
 
