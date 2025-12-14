@@ -1,16 +1,17 @@
 // File: src/routes/sendEmail.js
-import { Router } from 'express';
-import { Resend } from 'resend';
+require('dotenv').config();
+const express = require('express');
+const { Resend } = require('resend');
 
-const router = Router();
-const resend = new Resend(process.env.RESEND_API_KEY);
+const router = express.Router();
 
 // Initialize Resend with your API key
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-// Helper to format currency
+// Helper function to format currency
 const formatCurrency = (amount) => `₹${Number(amount).toFixed(2)}`;
 
-router.post("/send-email", async (req, res) => {
+router.post('/send-email', async (req, res) => {
   const {
     email,
     fullName,
@@ -21,15 +22,15 @@ router.post("/send-email", async (req, res) => {
     phoneNumber,
     paymentMethod,
     orderDetails,
-    orderId = "N/A"
+    orderId = 'N/A'
   } = req.body;
 
   // Validation
   if (!email || !fullName || !orderDetails || !Array.isArray(orderDetails.items)) {
-    return res.status(400).json({ error: "Missing required order details." });
+    return res.status(400).json({ error: 'Missing required order details.' });
   }
 
-  // Generate HTML table for items
+  // Generate items table HTML
   const itemsTableHtml = `
     <table style="width:100%; border-collapse:collapse;">
       <thead>
@@ -42,8 +43,8 @@ router.post("/send-email", async (req, res) => {
       </thead>
       <tbody>
         ${orderDetails.items.map(item => {
-          const name = item.product?.name || "N/A";
-          const weight = item.weight || "N/A";
+          const name = item.product?.name || 'N/A';
+          const weight = item.weight || 'N/A';
           const quantity = item.quantity || 0;
           const unitPrice = item.product?.pricePerWeight?.[item.weight] || 0;
           const total = unitPrice * quantity;
@@ -96,11 +97,11 @@ router.post("/send-email", async (req, res) => {
       html: customerHtmlContent,
     });
 
-    res.status(200).json({ message: "Emails sent successfully." });
+    res.status(200).json({ message: 'Emails sent successfully.' });
   } catch (err) {
-    console.error("Failed to send emails via Resend:", err);
-    res.status(500).json({ error: "Failed to send emails", details: err.message });
+    console.error('Failed to send emails via Resend:', err);
+    res.status(500).json({ error: 'Failed to send emails', details: err.message });
   }
 });
 
-export default router;
+module.exports = router;
