@@ -6,7 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { CartProvider } from "@/context/CartContext";
 import { SignedIn, SignedOut, RedirectToSignIn } from "@clerk/clerk-react";
 
-// ✅ Page components
+// Components & Pages
 import Head from "./components/Head";
 import Index from "./pages/Index";
 import ProductsPage from "./pages/ProductsPage";
@@ -28,7 +28,6 @@ import PaymentSuccess from "./pages/PaymentSuccess";
 import PhonePeRedirectHandler from "./pages/PhonePeRedirectHandler";
 import OrderSummary from "./pages/OrderSummary";
 
-// ✅ React Query setup
 const queryClient = new QueryClient();
 
 const App = () => {
@@ -37,8 +36,9 @@ const App = () => {
       <TooltipProvider>
         <CartProvider>
           <Head />
-          <ShadToaster /> {/* shadcn ui Toaster */}
-          <Sonner /> {/* Optional Sonner Toaster */}
+          <ShadToaster />
+          <Sonner />
+
           <BrowserRouter>
             <Routes>
               {/* Public Routes */}
@@ -48,16 +48,31 @@ const App = () => {
               <Route path="/about" element={<AboutPage />} />
               <Route path="/contact" element={<ContactPage />} />
               <Route path="/checkout" element={<CheckoutPage />} />
+
+              {/* ✅ PAYMENT STATUS (VERY IMPORTANT) */}
+              <Route
+                path="/payment-status"
+                element={<PhonePeRedirectHandler />}
+              />
+
+              {/* PhonePe Redirect */}
+              <Route
+                path="/phonepe-redirect"
+                element={<PhonePeRedirectHandler />}
+              />
+
+              {/* Success & Orders */}
               <Route path="/checkout-success" element={<CheckoutSuccessPage />} />
+              <Route path="/success/:orderId" element={<CheckoutSuccessPage />} />
+              <Route path="/order-summary/:orderId" element={<OrderSummary />} />
+              <Route path="/payment-success" element={<PaymentSuccess />} />
+
+              {/* Policies */}
               <Route path="/shipping-policy" element={<ShippingPolicy />} />
               <Route path="/return-policy" element={<ReturnPolicy />} />
               <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
               <Route path="/privacy-policy" element={<PrivacyPolicy />} />
               <Route path="/faq" element={<FAQ />} />
-              <Route path="/success/:orderId" element={<CheckoutSuccessPage />} />
-              <Route path="/phonepe-redirect" element={<PhonePeRedirectHandler />} />
-              <Route path="/payment-success" element={<PaymentSuccess />} />
-              <Route path="/order-summary/:orderId" element={<OrderSummary />} />
 
               {/* Admin & Auth */}
               <Route path="/admin" element={<AdminDashboard />} />
@@ -79,7 +94,7 @@ const App = () => {
                 }
               />
 
-              {/* 404 Not Found */}
+              {/* 404 */}
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
