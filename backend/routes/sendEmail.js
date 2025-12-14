@@ -25,9 +25,9 @@ router.post('/send-email', async (req, res) => {
     return res.status(400).json({ error: 'Missing required order details.' });
   }
 
-  // Items table HTML
+  // Generate items table HTML
   const itemsTableHtml = `
-    <table style="width:100%; border-collapse:collapse; margin-top:10px;">
+    <table style="width:100%; border-collapse:collapse; margin-top:15px;">
       <thead>
         <tr style="background:#f8f8f8;">
           <th style="padding:10px; border-bottom:1px solid #ddd; text-align:left;">Product</th>
@@ -55,58 +55,98 @@ router.post('/send-email', async (req, res) => {
     </table>
   `;
 
-  // Store email
-  const storeHtml = `
-    <div style="font-family:Arial,sans-serif; max-width:650px; margin:auto; padding:20px; border:1px solid #ddd; border-radius:8px; background:#fff;">
-      <h1 style="color:#d35400; text-align:center;">ADHYAA PICKLES - New Order</h1>
-      <p style="font-size:16px;">You have received a new order from your website!</p>
-      <h2 style="color:#444; font-size:18px;">Order #${orderId}</h2>
-      <p><strong>Customer:</strong> ${fullName} (${email})</p>
-      <p><strong>Payment Method:</strong> ${paymentMethod === 'cod' ? 'Cash on Delivery' : 'Online Payment'}</p>
-      ${itemsTableHtml}
-      <p style="text-align:right; font-weight:bold; font-size:16px;">Total: ${formatCurrency(orderDetails.finalTotal)}</p>
-    </div>
+  // Costs summary table
+  const costsTableHtml = `
+    <table style="width:100%; margin-top:15px; font-size:16px;">
+      <tr>
+        <td style="padding:5px;">Subtotal:</td>
+        <td style="padding:5px; text-align:right;">${formatCurrency(orderDetails.subtotal || 0)}</td>
+      </tr>
+      ${orderDetails.discountAmount > 0 ? `
+      <tr>
+        <td style="padding:5px; color:#28a745;">Discount:</td>
+        <td style="padding:5px; text-align:right; color:#28a745;">-${formatCurrency(orderDetails.discountAmount)}</td>
+      </tr>` : ''}
+      <tr>
+        <td style="padding:5px;">Shipping:</td>
+        <td style="padding:5px; text-align:right;">${formatCurrency(orderDetails.shippingCost || 0)}</td>
+      </tr>
+      <tr>
+        <td style="padding:5px;">Taxes:</td>
+        <td style="padding:5px; text-align:right;">${formatCurrency(orderDetails.taxes || 0)}</td>
+      </tr>
+      ${orderDetails.additionalFees > 0 ? `
+      <tr>
+        <td style="padding:5px;">Additional Fees:</td>
+        <td style="padding:5px; text-align:right;">${formatCurrency(orderDetails.additionalFees)}</td>
+      </tr>` : ''}
+      <tr style="border-top:2px solid #d35400; font-weight:bold;">
+        <td style="padding:5px; font-size:18px;">Total:</td>
+        <td style="padding:5px; text-align:right; font-size:18px; color:#d35400;">${formatCurrency(orderDetails.finalTotal)}</td>
+      </tr>
+    </table>
   `;
 
-  // Customer email
-  const customerHtml = `
-    <div style="font-family:Arial,sans-serif; max-width:650px; margin:auto; padding:20px; border:1px solid #eee; border-radius:8px; background:#fff8e1;">
-      <div style="text-align:center; margin-bottom:20px;">
-        <h1 style="color:#d35400;">Thank you for your order, ${fullName}!</h1>
+  // Common email HTML for both store and customer
+  const emailHtml = `
+    <div style="font-family:Arial,sans-serif; max-width:650px; margin:auto; padding:20px; background:#fdf6e3; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.1);">
+      <div style="text-align:center; padding-bottom:20px; border-bottom:2px solid #d35400;">
+        <h1 style="color:#d35400; font-size:28px; margin:0;">ADHYAA PICKLES</h1>
+        <p style="font-size:16px; color:#555; margin-top:5px;">Order #${orderId}</p>
       </div>
-      <p style="font-size:16px; text-align:center;">Your order #${orderId} is confirmed and being processed.</p>
-      ${itemsTableHtml}
-      <div style="margin-top:20px;">
-        <h3 style="font-size:16px; color:#444;">Shipping Address:</h3>
-        <p style="font-size:15px; line-height:1.5;">
-          ${fullName}<br/>
+
+      <div style="margin-top:20px; padding:15px; background:#fff; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
+        <h2 style="color:#d35400; font-size:20px; margin-bottom:10px;">Hello ${fullName},</h2>
+        <p style="font-size:16px; color:#555; line-height:1.5;">
+          Your order has been received and is being processed. Here are the details:
+        </p>
+
+        ${itemsTableHtml}
+        ${costsTableHtml}
+      </div>
+
+      <div style="margin-top:20px; padding:15px; background:#fff; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
+        <h3 style="color:#d35400; font-size:18px; margin-bottom:10px;">Shipping Address</h3>
+        <p style="font-size:15px; color:#555; line-height:1.5;">
+          <strong>${fullName}</strong><br/>
           ${address}, ${city}, ${state} - ${postalCode}<br/>
           Phone: ${phoneNumber}
         </p>
+        <p style="margin-top:10px; font-size:15px; color:#555;">
+          <strong>Payment Method:</strong> ${paymentMethod === 'cod' ? 'Cash on Delivery' : 'Online Payment'}
+        </p>
       </div>
-      <p style="text-align:right; font-weight:bold; font-size:16px;">Total: ${formatCurrency(orderDetails.finalTotal)}</p>
-      <p style="text-align:center; margin-top:30px; font-size:14px; color:#777;">ADHYAA PICKLES Team</p>
+
+      <p style="text-align:center; margin-top:20px; font-size:14px; color:#777;">
+        If you have questions, contact us at <strong>${process.env.CUSTOMER_SERVICE_PHONE || '+91 7995059659'}</strong>
+      </p>
+
+      <p style="text-align:center; margin-top:10px; font-size:12px; color:#aaa;">
+        This is an automated email. Please do not reply.
+      </p>
     </div>
   `;
 
   try {
-    await resend.emails.send({
-      from: 'ADHYAA PICKLES <onboarding@resend.dev>',
-      to: 'tech.adhyaapickles@gmail.com',
-      subject: `NEW ORDER #${orderId} from ${fullName}`,
-      html: storeHtml,
-    });
-
+    // Send to customer
     await resend.emails.send({
       from: 'ADHYAA PICKLES <onboarding@resend.dev>',
       to: email,
       subject: `Your Order #${orderId} Confirmation`,
-      html: customerHtml,
+      html: emailHtml,
     });
 
-    res.status(200).json({ message: 'Emails sent successfully.' });
+    // Send to store
+    await resend.emails.send({
+      from: 'ADHYAA PICKLES <onboarding@resend.dev>',
+      to: 'tech.adhyaapickles@gmail.com',
+      subject: `NEW ORDER #${orderId} from ${fullName}`,
+      html: emailHtml,
+    });
+
+    res.status(200).json({ message: 'Emails sent successfully to customer and store.' });
   } catch (err) {
-    console.error('Failed to send emails via Resend:', err);
+    console.error('Email sending failed:', err);
     res.status(500).json({ error: 'Failed to send emails', details: err.message });
   }
 });
