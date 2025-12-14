@@ -14,8 +14,11 @@ const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
     user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS, // App password for Gmail
+    pass: process.env.EMAIL_PASS, // App password
   },
+  connectionTimeout: 20000, // 20 seconds
+  greetingTimeout: 20000,
+  socketTimeout: 20000,
 });
 
 // Helper function to format currency
