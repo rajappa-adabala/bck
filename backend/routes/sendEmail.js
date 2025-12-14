@@ -1,36 +1,45 @@
-const express = require('express');
-const { Resend } = require('resend');
+const express = require("express");
+const nodemailer = require("nodemailer");
 
 const router = express.Router();
-const resend = new Resend(process.env.RESEND_API_KEY);
 
-router.post('/', async (req, res) => {
+router.post("/send-email", async (req, res) => {
   try {
-    const {
-      email,
-      fullName,
-      orderId,
-      orderDetails,
-      paymentMethod,
-    } = req.body;
+    const { to, subject, html } = req.body;
 
-    await resend.emails.send({
-      from: process.env.EMAIL_FROM,
-      to: email,
-      subject: `Order Confirmed – ${orderId}`,
-      html: `
-        <h2>Thank you, ${fullName}!</h2>
-        <p>Your order <b>${orderId}</b> has been placed successfully.</p>
-        <p><b>Payment:</b> ${paymentMethod.toUpperCase()}</p>
-        <p><b>Total:</b> ₹${orderDetails.finalTotal}</p>
-        <p>We will contact you soon.</p>
-      `,
+    if (!to) {
+      return res.status(400).json({ message: "Recipient email missing" });
+    }
+
+    const transporter = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 587,
+      secure: false,
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS, // APP PASSWORD (NOT normal password)
+      },
     });
 
-    res.json({ message: 'Email sent successfully' });
+    const info = await transporter.sendMail({
+      from: `"Adhyaa Pickles" <${process.env.EMAIL_USER}>`,
+      to,
+      subject,
+      html,
+    });
+
+    console.log("📧 Mail accepted:", info.accepted);
+    console.log("📨 Mail response:", info.response);
+
+    if (!info.accepted || info.accepted.length === 0) {
+      return res.status(500).json({ message: "Email rejected by SMTP" });
+    }
+
+    res.status(200).json({ message: "Email sent successfully" });
+
   } catch (error) {
-    console.error('Resend email error:', error);
-    res.status(500).json({ message: 'Email failed' });
+    console.error("❌ Email send failed:", error);
+    res.status(500).json({ message: "Email failed", error: error.message });
   }
 });
 
