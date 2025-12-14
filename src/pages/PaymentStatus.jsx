@@ -6,7 +6,7 @@ import axios from "axios";
 export default function PaymentStatus() {
   const [searchParams] = useSearchParams();
   const orderId = searchParams.get("orderId");
-  const [status, setStatus] = useState("Verifying payment...");
+  const [status, setStatus] = useState("Verifying your payment...");
 
   useEffect(() => {
     if (!orderId) return;
@@ -24,7 +24,7 @@ export default function PaymentStatus() {
     };
 
     checkStatus();
-    const interval = setInterval(checkStatus, 5000); // poll every 5 seconds
+    const interval = setInterval(checkStatus, 5000);
     return () => clearInterval(interval);
   }, [orderId]);
 
