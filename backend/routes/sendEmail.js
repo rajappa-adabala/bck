@@ -2,11 +2,10 @@
 import { Router } from 'express';
 import { Resend } from 'resend';
 
-import express from 'express';
-const router = express.Router();
+const router = Router();
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 // Initialize Resend with your API key
-const resend = new Resend(process.env.RESEND_API_KEY);
 
 // Helper to format currency
 const formatCurrency = (amount) => `₹${Number(amount).toFixed(2)}`;
