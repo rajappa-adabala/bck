@@ -25,7 +25,7 @@ router.post('/send-email', async (req, res) => {
     return res.status(400).json({ error: 'Missing required order details.' });
   }
 
-  // Generate items table HTML
+  // Build items table
   const itemsTableHtml = `
     <table style="width:100%; border-collapse:collapse; margin-top:15px;">
       <thead>
@@ -40,109 +40,91 @@ router.post('/send-email', async (req, res) => {
         ${orderDetails.items.map(item => {
           const name = item.product?.name || 'N/A';
           const weight = item.weight || 'N/A';
-          const quantity = item.quantity || 0;
-          const unitPrice = item.product?.pricePerWeight?.[item.weight] || 0;
-          const total = unitPrice * quantity;
-          return `
-            <tr>
-              <td style="padding:10px; border-bottom:1px solid #eee;">${name}</td>
-              <td style="padding:10px; border-bottom:1px solid #eee; text-align:center;">${weight}g</td>
-              <td style="padding:10px; border-bottom:1px solid #eee; text-align:center;">${quantity}</td>
-              <td style="padding:10px; border-bottom:1px solid #eee; text-align:right;">${formatCurrency(total)}</td>
-            </tr>`;
+          const qty = item.quantity || 0;
+          const price = item.product?.pricePerWeight?.[item.weight] || 0;
+          const total = price * qty;
+          return `<tr>
+                    <td style="padding:10px;">${name}</td>
+                    <td style="padding:10px; text-align:center;">${weight}g</td>
+                    <td style="padding:10px; text-align:center;">${qty}</td>
+                    <td style="padding:10px; text-align:right;">${formatCurrency(total)}</td>
+                  </tr>`;
         }).join('')}
       </tbody>
     </table>
   `;
 
-  // Costs summary table
+  // Build costs summary
   const costsTableHtml = `
     <table style="width:100%; margin-top:15px; font-size:16px;">
       <tr>
-        <td style="padding:5px;">Subtotal:</td>
-        <td style="padding:5px; text-align:right;">${formatCurrency(orderDetails.subtotal || 0)}</td>
+        <td>Subtotal:</td>
+        <td style="text-align:right;">${formatCurrency(orderDetails.subtotal || 0)}</td>
       </tr>
-      ${orderDetails.discountAmount > 0 ? `
-      <tr>
-        <td style="padding:5px; color:#28a745;">Discount:</td>
-        <td style="padding:5px; text-align:right; color:#28a745;">-${formatCurrency(orderDetails.discountAmount)}</td>
+      ${orderDetails.discountAmount > 0 ? `<tr>
+        <td style="color:#28a745;">Discount:</td>
+        <td style="text-align:right; color:#28a745;">-${formatCurrency(orderDetails.discountAmount)}</td>
       </tr>` : ''}
       <tr>
-        <td style="padding:5px;">Shipping:</td>
-        <td style="padding:5px; text-align:right;">${formatCurrency(orderDetails.shippingCost || 0)}</td>
+        <td>Shipping:</td>
+        <td style="text-align:right;">${formatCurrency(orderDetails.shippingCost || 0)}</td>
       </tr>
       <tr>
-        <td style="padding:5px;">Taxes:</td>
-        <td style="padding:5px; text-align:right;">${formatCurrency(orderDetails.taxes || 0)}</td>
+        <td>Taxes:</td>
+        <td style="text-align:right;">${formatCurrency(orderDetails.taxes || 0)}</td>
       </tr>
-      ${orderDetails.additionalFees > 0 ? `
-      <tr>
-        <td style="padding:5px;">Additional Fees:</td>
-        <td style="padding:5px; text-align:right;">${formatCurrency(orderDetails.additionalFees)}</td>
+      ${orderDetails.additionalFees > 0 ? `<tr>
+        <td>Additional Fees:</td>
+        <td style="text-align:right;">${formatCurrency(orderDetails.additionalFees)}</td>
       </tr>` : ''}
       <tr style="border-top:2px solid #d35400; font-weight:bold;">
-        <td style="padding:5px; font-size:18px;">Total:</td>
-        <td style="padding:5px; text-align:right; font-size:18px; color:#d35400;">${formatCurrency(orderDetails.finalTotal)}</td>
+        <td>Total:</td>
+        <td style="text-align:right; color:#d35400;">${formatCurrency(orderDetails.finalTotal)}</td>
       </tr>
     </table>
   `;
 
-  // Common email HTML for both store and customer
+  // Common HTML template
   const emailHtml = `
-    <div style="font-family:Arial,sans-serif; max-width:650px; margin:auto; padding:20px; background:#fdf6e3; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.1);">
-      <div style="text-align:center; padding-bottom:20px; border-bottom:2px solid #d35400;">
+    <div style="font-family:Arial,sans-serif; max-width:650px; margin:auto; padding:20px; background:#fdf6e3; border-radius:10px;">
+      <div style="text-align:center; border-bottom:2px solid #d35400; padding-bottom:15px;">
         <h1 style="color:#d35400; font-size:28px; margin:0;">ADHYAA PICKLES</h1>
-        <p style="font-size:16px; color:#555; margin-top:5px;">Order #${orderId}</p>
+        <p>Order #${orderId}</p>
       </div>
-
-      <div style="margin-top:20px; padding:15px; background:#fff; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
-        <h2 style="color:#d35400; font-size:20px; margin-bottom:10px;">Hello ${fullName},</h2>
-        <p style="font-size:16px; color:#555; line-height:1.5;">
-          Your order has been received and is being processed. Here are the details:
-        </p>
-
+      <div style="background:#fff; padding:15px; border-radius:8px; margin-top:20px;">
+        <h2 style="color:#d35400;">Hello ${fullName},</h2>
+        <p>Your order has been received and is being processed:</p>
         ${itemsTableHtml}
         ${costsTableHtml}
       </div>
-
-      <div style="margin-top:20px; padding:15px; background:#fff; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
-        <h3 style="color:#d35400; font-size:18px; margin-bottom:10px;">Shipping Address</h3>
-        <p style="font-size:15px; color:#555; line-height:1.5;">
-          <strong>${fullName}</strong><br/>
-          ${address}, ${city}, ${state} - ${postalCode}<br/>
-          Phone: ${phoneNumber}
-        </p>
-        <p style="margin-top:10px; font-size:15px; color:#555;">
-          <strong>Payment Method:</strong> ${paymentMethod === 'cod' ? 'Cash on Delivery' : 'Online Payment'}
-        </p>
+      <div style="background:#fff; padding:15px; border-radius:8px; margin-top:15px;">
+        <h3 style="color:#d35400;">Shipping Address</h3>
+        <p>${fullName}<br/>${address}, ${city}, ${state} - ${postalCode}<br/>Phone: ${phoneNumber}</p>
+        <p><strong>Payment Method:</strong> ${paymentMethod === 'cod' ? 'Cash on Delivery' : 'Online Payment'}</p>
       </div>
-
-      <p style="text-align:center; margin-top:20px; font-size:14px; color:#777;">
-        If you have questions, contact us at <strong>${process.env.CUSTOMER_SERVICE_PHONE || '+91 7995059659'}</strong>
-      </p>
-
-      <p style="text-align:center; margin-top:10px; font-size:12px; color:#aaa;">
+      <p style="text-align:center; margin-top:20px; font-size:12px; color:#777;">
         This is an automated email. Please do not reply.
       </p>
     </div>
   `;
 
   try {
-    // Send to customer
-    await resend.emails.send({
+    // Send emails **in parallel** so both go out
+    const sendToCustomer = resend.emails.send({
       from: 'ADHYAA PICKLES <onboarding@resend.dev>',
       to: email,
       subject: `Your Order #${orderId} Confirmation`,
       html: emailHtml,
     });
 
-    // Send to store
-    await resend.emails.send({
+    const sendToStore = resend.emails.send({
       from: 'ADHYAA PICKLES <onboarding@resend.dev>',
       to: 'tech.adhyaapickles@gmail.com',
       subject: `NEW ORDER #${orderId} from ${fullName}`,
       html: emailHtml,
     });
+
+    await Promise.all([sendToCustomer, sendToStore]);
 
     res.status(200).json({ message: 'Emails sent successfully to customer and store.' });
   } catch (err) {
