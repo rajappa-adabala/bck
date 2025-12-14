@@ -8,10 +8,9 @@ const { Server } = require("socket.io");
 const { createClient } = require("@supabase/supabase-js");
 
 // ROUTES
-import sendEmailRouter from './routes/sendEmail';
-
-
+const sendEmailRouter = require('./routes/sendEmail');
 const adminRoutes = require("./routes/adminRoutes");
+
 const orderRoutes = require("./routes/orderRoutes");
 const phonepeRoutes = require("./routes/phonepeRoutes");
 const phonepeWebhook = require("./routes/phonepeWebhook");
