@@ -7,10 +7,10 @@ const {
 } = require("pg-sdk-node");
 
 const router = express.Router();
-
 let supabase = null; // will be injected
 let phonepeClient = null;
 
+// Initialize PhonePe client
 const getPhonePeClient = () => {
   if (!phonepeClient) {
     const clientId = process.env.PHONEPE_CLIENT_ID;
@@ -35,11 +35,10 @@ const getPhonePeClient = () => {
   return phonepeClient;
 };
 
-// ✅ INITIATE PAYMENT
+// Initiate Payment
 router.post("/", async (req, res) => {
   try {
     const { amount, customer } = req.body;
-
     if (!amount || isNaN(amount)) {
       return res.status(400).json({ message: "Invalid or missing amount" });
     }
@@ -47,12 +46,6 @@ router.post("/", async (req, res) => {
     const orderId = `ORD-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
     const redirectUrl = process.env.REDIRECT_URL;
     const callbackUrl = process.env.CALLBACK_URL;
-
-    if (!redirectUrl || !callbackUrl) {
-      return res.status(500).json({ message: "Missing REDIRECT_URL or CALLBACK_URL in environment" });
-    }
-
-    console.log("🧾 Initiating PhonePe payment with orderId:", orderId);
 
     const payRequest = StandardCheckoutPayRequest.builder()
       .merchantOrderId(orderId)
@@ -64,60 +57,38 @@ router.post("/", async (req, res) => {
     const response = await client.pay(payRequest);
 
     if (response?.redirectUrl) {
-      return res.status(200).json({
-        paymentUrl: response.redirectUrl,
-        orderId,
-      });
+      return res.status(200).json({ paymentUrl: response.redirectUrl, orderId });
     } else {
-      return res.status(500).json({
-        message: "PhonePe did not return a payment redirect URL",
-      });
+      return res.status(500).json({ message: "No payment redirect URL from PhonePe" });
     }
   } catch (err) {
     console.error("❌ PhonePe Payment Error:", err);
-    return res.status(500).json({
-      message: "PhonePe payment initiation failed",
-      error: err.message,
-    });
+    return res.status(500).json({ message: "Payment initiation failed", error: err.message });
   }
 });
 
-// ✅ WEBHOOK ENDPOINT (Optional - for future)
-router.post("/webhook", express.json(), (req, res) => {
-  const { orderId, state } = req.body;
-
-  console.log("📬 Received webhook from PhonePe:", req.body);
-
-  // You can verify signature and update DB here if needed.
-
-  res.status(200).send("Webhook received");
-});
-
-// ✅ POLL PAYMENT STATUS AND UPDATE ORDER
-router.get("/status/:orderId", async (req, res) => {
-  const orderId = req.params.orderId;
-  const client = getPhonePeClient();
-
+// Webhook Endpoint (PhonePe will call this after transaction)
+router.post("/webhook", express.raw({ type: "*/*" }), async (req, res) => {
   try {
-    const statusRes = await client.checkStatus(orderId);
-    const status = statusRes.data?.status; // Extract actual status
+    const payload = JSON.parse(req.body.toString());
+    const { merchantTransactionId, transactionStatus, transactionId } = payload;
 
-    console.log("🔍 PhonePe Status:", status);
+    console.log("📬 PhonePe Webhook Payload:", payload);
 
-    // Only proceed if it's a real success
-    if (status === "SUCCESS") {
+    // Only mark order paid if SUCCESS
+    if (transactionStatus === "SUCCESS") {
       const { data, error } = await supabase
         .from("orders")
-        .update({
-          payment_id: statusRes.data.transactionId,
-          order_status: "paid",
-        })
-        .eq("order_id", orderId)
+        .update({ payment_id: transactionId, order_status: "paid" })
+        .eq("order_id", merchantTransactionId)
         .select();
 
-      if (error) return res.status(500).json({ message: "DB update failed", error });
+      if (error) {
+        console.error("❌ DB Update Failed:", error);
+        return res.status(500).send({ status: "ERROR", message: "DB update failed" });
+      }
 
-      // Optional: send confirmation email
+      // Send confirmation email to customer
       const backendBaseUrl = process.env.BACKEND_URL || "http://localhost:5000";
       await axios.post(`${backendBaseUrl}/api/send-email`, {
         ...data[0].customer_info,
@@ -134,25 +105,52 @@ router.get("/status/:orderId", async (req, res) => {
         orderId: data[0].order_id,
       });
 
-      return res.json({ message: "✅ Payment confirmed", order: data[0] });
+      return res.status(200).send({ status: "OK" });
     }
 
-    // ❌ Handle cancelled or failed cases
+    // Mark failed or cancelled transactions
+    if (transactionStatus === "FAILED" || transactionStatus === "CANCELLED") {
+      await supabase
+        .from("orders")
+        .update({ order_status: transactionStatus.toLowerCase() })
+        .eq("order_id", merchantTransactionId);
+
+      return res.status(200).send({ status: "OK", message: `Payment ${transactionStatus}` });
+    }
+
+    res.status(200).send({ status: "OK", message: "Pending/unknown status" });
+  } catch (err) {
+    console.error("❌ Webhook Error:", err);
+    res.status(500).send({ status: "ERROR", message: err.message });
+  }
+});
+
+// Poll Payment Status (optional)
+router.get("/status/:orderId", async (req, res) => {
+  try {
+    const orderId = req.params.orderId;
+    const client = getPhonePeClient();
+    const statusRes = await client.checkStatus(orderId);
+    const status = statusRes.data?.status;
+
+    console.log("🔍 PhonePe Status:", status);
+
+    if (status === "SUCCESS") {
+      return res.json({ message: "✅ Payment confirmed", status });
+    }
+
     if (status === "FAILED" || status === "CANCELLED") {
-      // Optional: update DB or notify frontend
       return res.json({ message: `❌ Payment ${status.toLowerCase()}`, status });
     }
 
     return res.json({ message: "⏳ Payment pending or unknown", status });
   } catch (err) {
-    console.error("❌ Error in status check:", err.message);
-    return res.status(500).json({ error: "Unable to check payment status" });
+    console.error("❌ Status Check Error:", err.message);
+    res.status(500).json({ error: "Unable to check payment status" });
   }
 });
 
-
-
-// ✅ Export router with injected Supabase instance
+// Export router
 module.exports = (injectedSupabase) => {
   supabase = injectedSupabase;
   return router;
